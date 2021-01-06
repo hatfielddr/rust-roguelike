@@ -33,6 +33,8 @@ pub mod random_table;
 pub mod particle_system;
 pub mod hunger_system;
 pub mod rex_assets;
+pub mod trigger_system;
+pub mod map_builders;
 
 
 #[derive(PartialEq, Copy, Clone)]
@@ -64,6 +66,8 @@ impl State {
         mob.run_now(&self.ecs);
         let mut mapindex = MapIndexingSystem {};
         mapindex.run_now(&self.ecs);
+        let mut triggers = trigger_system::TriggerSystem {};
+        triggers.run_now(&self.ecs);
         let mut melee = MeleeCombatSystem {};
         melee.run_now(&self.ecs);
         let mut damage = DamageSystem {};
@@ -103,11 +107,12 @@ impl GameState for State {
                 draw_map(&self.ecs, ctx);
                 let positions = self.ecs.read_storage::<Position>();
                 let renderables = self.ecs.read_storage::<Renderable>();
+                let hidden = self.ecs.read_storage::<Hidden>();
                 let map = self.ecs.fetch::<Map>();
 
-                let mut data = (&positions, &renderables).join().collect::<Vec<_>>();
+                let mut data = (&positions, &renderables, !&hidden).join().collect::<Vec<_>>();
                 data.sort_by(|&a, &b| b.1.render_order.cmp(&a.1.render_order));
-                for (pos, render) in data.iter() {
+                for (pos, render, _hidden) in data.iter() {
                     let idx = map.xy_idx(pos.x, pos.y);
                     if map.visible_tiles[idx] { ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph) }
                 }
@@ -300,22 +305,23 @@ impl State {
         }
 
         // Build a new map and place the player
-        let worldmap;
+        let mut builder;
         let current_depth;
+        let player_start;
         {
             let mut worldmap_resource = self.ecs.write_resource::<Map>();
             current_depth = worldmap_resource.depth;
-            *worldmap_resource = Map::new_map_rooms_and_corridors(current_depth + 1);
-            worldmap = worldmap_resource.clone();
+            builder = map_builders::random_builder(current_depth + 1);
+            builder.build_map();
+            *worldmap_resource = builder.get_map();
+            player_start = builder.get_starting_position();
         }
 
         // Spawn bad guys
-        for room in worldmap.rooms.iter().skip(1) {
-            spawner::spawn_room(&mut self.ecs, room, current_depth + 1);
-        }
+        builder.spawn_entities(&mut self.ecs);
 
         // Place the player and update resources
-        let (player_x, player_y) = worldmap.rooms[0].center();
+        let (player_x, player_y) = (player_start.x, player_start.y);
         let mut player_position = self.ecs.write_resource::<Point>();
         *player_position = Point::new(player_x, player_y);
         let mut position_components = self.ecs.write_storage::<Position>();
@@ -354,20 +360,20 @@ impl State {
         }
 
         // Build a new map and place the player
-        let worldmap;
+        let mut builder = map_builders::random_builder(1);
+        let player_start;
         {
             let mut worldmap_resource = self.ecs.write_resource::<Map>();
-            *worldmap_resource = Map::new_map_rooms_and_corridors(1);
-            worldmap = worldmap_resource.clone();
+            builder.build_map();
+            player_start = builder.get_starting_position();
+            *worldmap_resource = builder.get_map();
         }
 
         // Spawn bad guys
-        for room in worldmap.rooms.iter().skip(1) {
-            spawner::spawn_room(&mut self.ecs, room, 1);
-        }
+        builder.spawn_entities(&mut self.ecs);
 
         // Place the player and update resources
-        let (player_x, player_y) = worldmap.rooms[0].center();
+        let (player_x, player_y) = (player_start.x, player_start.y);
         let player_entity = spawner::player(&mut self.ecs, player_x, player_y);
         let mut player_position = self.ecs.write_resource::<Point>();
         *player_position = Point::new(player_x, player_y);
@@ -430,18 +436,23 @@ fn main() -> rltk::BError {
     gs.ecs.register::<HungerClock>();
     gs.ecs.register::<ProvidesFood>();
     gs.ecs.register::<MagicMapper>();
+    gs.ecs.register::<Hidden>();
+    gs.ecs.register::<EntryTrigger>();
+    gs.ecs.register::<EntityMoved>();
+    gs.ecs.register::<SingleActivation>();
 
     gs.ecs.insert(SimpleMarkerAllocator::<SerializeMe>::new());
 
-    let map: Map = Map::new_map_rooms_and_corridors(1);
-    let (player_x, player_y) = map.rooms[0].center();
+    let mut builder = map_builders::random_builder(1);
+    builder.build_map();
+    let player_start = builder.get_starting_position();
+    let map = builder.get_map();
+    let (player_x, player_y) = (player_start.x, player_start.y);
 
     let player_entity = spawner::player(&mut gs.ecs, player_x, player_y);
 
     gs.ecs.insert(rltk::RandomNumberGenerator::new());
-    for room in map.rooms.iter().skip(1) {
-        spawner::spawn_room(&mut gs.ecs, room, 1);
-    }
+    builder.spawn_entities(&mut gs.ecs);
 
     gs.ecs.insert(map);
     gs.ecs.insert(Point::new(player_x, player_y));
