@@ -3,8 +3,8 @@ use std::cmp::{max, min};
 use rltk::{Point, Rltk, VirtualKeyCode};
 use specs::prelude::*;
 
-use super::{CombatStats, gamelog::GameLog, Item, Map, Player, Position, RunState, State, TileType,
-            Viewshed, WantsToMelee, WantsToPickupItem};
+use super::{CombatStats, gamelog::GameLog, Item, Map, Monster, Player, Position, RunState, State,
+            TileType, Viewshed, WantsToMelee, WantsToPickupItem};
 
 pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     let mut positions = ecs.write_storage::<Position>();
@@ -76,6 +76,35 @@ fn get_item(ecs: &mut World) {
     }
 }
 
+fn skip_turn(ecs: &mut World) -> RunState {
+    let player_entity = ecs.fetch::<Entity>();
+    let viewshed_components = ecs.read_storage::<Viewshed>();
+    let monsters = ecs.read_storage::<Monster>();
+
+    let worldmap_resource = ecs.fetch::<Map>();
+
+    let mut can_heal = true;
+    let viewshed = viewshed_components.get(*player_entity).unwrap();
+    for tile in viewshed.visible_tiles.iter() {
+        let idx = worldmap_resource.xy_idx(tile.x, tile.y);
+        for entity_id in worldmap_resource.tile_content[idx].iter() {
+            let mob = monsters.get(*entity_id);
+            match mob {
+                None => {}
+                Some(_) => { can_heal = false; }
+            }
+        }
+    }
+
+    if can_heal {
+        let mut health_components = ecs.write_storage::<CombatStats>();
+        let player_hp = health_components.get_mut(*player_entity).unwrap();
+        player_hp.hp = i32::min(player_hp.hp + 1, player_hp.max_hp);
+    }
+
+    RunState::PlayerTurn
+}
+
 pub fn player_input(gs: &mut State, ctx: &mut Rltk) -> RunState {
     // Player movement
     match ctx.key {
@@ -110,20 +139,25 @@ pub fn player_input(gs: &mut State, ctx: &mut Rltk) -> RunState {
             VirtualKeyCode::Numpad1 |
             VirtualKeyCode::B => try_move_player(-1, 1, &mut gs.ecs),
 
-            // Picking up items
-            VirtualKeyCode::G => get_item(&mut gs.ecs),
-            VirtualKeyCode::I => return RunState::ShowInventory,
-            VirtualKeyCode::D => return RunState::ShowDropItem,
-
-            // Save and Quit
-            VirtualKeyCode::Escape => return RunState::SaveGame,
+            // Skip Turn
+            VirtualKeyCode::Numpad5 |
+            VirtualKeyCode::Space => return skip_turn(&mut gs.ecs),
 
             // Level changes
             VirtualKeyCode::Period => {
                 if try_next_level(&mut gs.ecs) {
                     return RunState::NextLevel;
                 }
-            },
+            }
+
+            // Picking up items
+            VirtualKeyCode::G => get_item(&mut gs.ecs),
+            VirtualKeyCode::I => return RunState::ShowInventory,
+            VirtualKeyCode::D => return RunState::ShowDropItem,
+            VirtualKeyCode::R => return RunState::ShowRemoveItem,
+
+            // Save and Quit
+            VirtualKeyCode::Escape => return RunState::SaveGame,
 
             _ => { return RunState::AwaitingInput }
         },
