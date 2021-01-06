@@ -27,7 +27,7 @@ struct ParticleRequest {
     fg: RGB,
     bg: RGB,
     glyph: rltk::FontCharType,
-    lifetime: f32,
+    lifetime: f32
 }
 
 pub struct ParticleBuilder {

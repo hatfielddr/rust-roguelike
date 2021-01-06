@@ -98,7 +98,7 @@ impl Map {
             blocked: vec![false; MAPCOUNT],
             tile_content: vec![Vec::new(); MAPCOUNT],
             depth: new_depth,
-            bloodstains: HashSet::new()
+            bloodstains: HashSet::new(),
         };
 
         const MAX_ROOMS: i32 = 30;

@@ -32,6 +32,7 @@ pub mod saveload_system;
 pub mod random_table;
 pub mod particle_system;
 pub mod hunger_system;
+pub mod rex_assets;
 
 
 #[derive(PartialEq, Copy, Clone)]
@@ -48,6 +49,7 @@ pub enum RunState {
     NextLevel,
     ShowRemoveItem,
     GameOver,
+    MagicMapReveal { row: i32 },
 }
 
 pub struct State {
@@ -125,7 +127,10 @@ impl GameState for State {
             RunState::PlayerTurn => {
                 self.run_systems();
                 self.ecs.maintain();
-                newrunstate = RunState::MonsterTurn;
+                match *self.ecs.fetch::<RunState>() {
+                    RunState::MagicMapReveal { .. } => newrunstate = RunState::MagicMapReveal { row: 0 },
+                    _ => newrunstate = RunState::MonsterTurn
+                }
             }
             RunState::MonsterTurn => {
                 self.run_systems();
@@ -223,6 +228,18 @@ impl GameState for State {
             RunState::NextLevel => {
                 self.goto_next_level();
                 newrunstate = RunState::PreRun;
+            }
+            RunState::MagicMapReveal { row } => {
+                let mut map = self.ecs.fetch_mut::<Map>();
+                for x in 0..MAPWIDTH {
+                    let idx = map.xy_idx(x as i32, row);
+                    map.revealed_tiles[idx] = true;
+                }
+                if row as usize == MAPHEIGHT - 1 {
+                    newrunstate = RunState::MonsterTurn;
+                } else {
+                    newrunstate = RunState::MagicMapReveal { row: row + 1 };
+                }
             }
         }
 
@@ -412,6 +429,7 @@ fn main() -> rltk::BError {
     gs.ecs.register::<ParticleLifetime>();
     gs.ecs.register::<HungerClock>();
     gs.ecs.register::<ProvidesFood>();
+    gs.ecs.register::<MagicMapper>();
 
     gs.ecs.insert(SimpleMarkerAllocator::<SerializeMe>::new());
 
@@ -431,6 +449,7 @@ fn main() -> rltk::BError {
     gs.ecs.insert(RunState::MainMenu { menu_selection: gui::MainMenuSelection::NewGame });
     gs.ecs.insert(gamelog::GameLog { entries: vec!["Welcome to Rusty Roguelike".to_string()] });
     gs.ecs.insert(particle_system::ParticleBuilder::new());
+    gs.ecs.insert(rex_assets::RexAssets::new());
 
     rltk::main_loop(context, gs)
 }
