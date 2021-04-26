@@ -1,32 +1,31 @@
 use specs::prelude::*;
-
-use super::{EntityMoved, EntryTrigger, gamelog::GameLog, Hidden, InflictsDamage, Map, Name,
-            particle_system::ParticleBuilder, Position, SingleActivation, SufferDamage};
+use super::{EntityMoved, Position, EntryTrigger, Hidden, Map, Name, gamelog::GameLog,
+    InflictsDamage, particle_system::ParticleBuilder, SufferDamage, SingleActivation};
 
 pub struct TriggerSystem {}
 
 impl<'a> System<'a> for TriggerSystem {
     #[allow(clippy::type_complexity)]
-    type SystemData = (ReadExpect<'a, Map>,
-                       WriteStorage<'a, EntityMoved>,
-                       ReadStorage<'a, Position>,
-                       ReadStorage<'a, EntryTrigger>,
-                       WriteStorage<'a, Hidden>,
-                       ReadStorage<'a, Name>,
-                       Entities<'a>,
-                       WriteExpect<'a, GameLog>,
-                       ReadStorage<'a, InflictsDamage>,
-                       WriteExpect<'a, ParticleBuilder>,
-                       WriteStorage<'a, SufferDamage>,
-                       ReadStorage<'a, SingleActivation>);
+    type SystemData = ( ReadExpect<'a, Map>,
+                        WriteStorage<'a, EntityMoved>,
+                        ReadStorage<'a, Position>,
+                        ReadStorage<'a, EntryTrigger>,
+                        WriteStorage<'a, Hidden>,
+                        ReadStorage<'a, Name>,
+                        Entities<'a>,
+                        WriteExpect<'a, GameLog>,
+                        ReadStorage<'a, InflictsDamage>,
+                        WriteExpect<'a, ParticleBuilder>,
+                        WriteStorage<'a, SufferDamage>,
+                        ReadStorage<'a, SingleActivation>);
 
-    fn run(&mut self, data: Self::SystemData) {
+    fn run(&mut self, data : Self::SystemData) {
         let (map, mut entity_moved, position, entry_trigger, mut hidden,
             names, entities, mut log, inflicts_damage, mut particle_builder,
             mut inflict_damage, single_activation) = data;
 
         // Iterate the entities that moved and their final position
-        let mut remove_entities: Vec<Entity> = Vec::new();
+        let mut remove_entities : Vec<Entity> = Vec::new();
         for (entity, mut _entity_moved, pos) in (&entities, &mut entity_moved, &position).join() {
             let idx = map.xy_idx(pos.x, pos.y);
             for entity_id in map.tile_content[idx].iter() {

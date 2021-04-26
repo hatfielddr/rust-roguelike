@@ -1,12 +1,10 @@
-use std::fs;
+use specs::prelude::*;
+use specs::saveload::{SimpleMarker, SimpleMarkerAllocator, SerializeComponents, DeserializeComponents, MarkedBuilder};
+use specs::error::NoError;
+use super::components::*;
 use std::fs::File;
 use std::path::Path;
-
-use specs::error::NoError;
-use specs::prelude::*;
-use specs::saveload::{DeserializeComponents, MarkedBuilder, SerializeComponents, SimpleMarker, SimpleMarkerAllocator};
-
-use super::components::*;
+use std::fs;
 
 macro_rules! serialize_individually {
     ($ecs:expr, $ser:expr, $data:expr, $( $type:ty),*) => {
@@ -23,21 +21,22 @@ macro_rules! serialize_individually {
 }
 
 #[cfg(target_arch = "wasm32")]
-pub fn save_game(_ecs: &mut World) {}
+pub fn save_game(_ecs : &mut World) {
+}
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn save_game(ecs: &mut World) {
+pub fn save_game(ecs : &mut World) {
     // Create helper
     let mapcopy = ecs.get_mut::<super::map::Map>().unwrap().clone();
     let savehelper = ecs
         .create_entity()
-        .with(SerializationHelper { map: mapcopy })
+        .with(SerializationHelper{ map : mapcopy })
         .marked::<SimpleMarker<SerializeMe>>()
         .build();
 
     // Actually serialize
     {
-        let data = (ecs.entities(), ecs.read_storage::<SimpleMarker<SerializeMe>>());
+        let data = ( ecs.entities(), ecs.read_storage::<SimpleMarker<SerializeMe>>() );
 
         let writer = File::create("./savegame.json").unwrap();
         let mut serializer = serde_json::Serializer::new(writer);
@@ -100,19 +99,19 @@ pub fn load_game(ecs: &mut World) {
         );
     }
 
-    let mut deleteme: Option<Entity> = None;
+    let mut deleteme : Option<Entity> = None;
     {
         let entities = ecs.entities();
         let helper = ecs.read_storage::<SerializationHelper>();
         let player = ecs.read_storage::<Player>();
         let position = ecs.read_storage::<Position>();
-        for (e, h) in (&entities, &helper).join() {
+        for (e,h) in (&entities, &helper).join() {
             let mut worldmap = ecs.write_resource::<super::map::Map>();
             *worldmap = h.map.clone();
             worldmap.tile_content = vec![Vec::new(); super::map::MAPCOUNT];
             deleteme = Some(e);
         }
-        for (e, _p, pos) in (&entities, &player, &position).join() {
+        for (e,_p,pos) in (&entities, &player, &position).join() {
             let mut ppos = ecs.write_resource::<rltk::Point>();
             *ppos = rltk::Point::new(pos.x, pos.y);
             let mut player_resource = ecs.write_resource::<Entity>();

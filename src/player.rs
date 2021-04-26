@@ -1,10 +1,8 @@
-use std::cmp::{max, min};
-
-use rltk::{Point, Rltk, VirtualKeyCode};
+use rltk::{VirtualKeyCode, Rltk, Point};
 use specs::prelude::*;
-
-use super::{CombatStats, EntityMoved, gamelog::GameLog, HungerClock, HungerState, Item, Map, Monster, Player,
-            Position, RunState, State, TileType, Viewshed, WantsToMelee, WantsToPickupItem};
+use std::cmp::{max, min};
+use super::{Position, Player, Viewshed, State, Map, RunState, CombatStats, WantsToMelee, Item,
+    gamelog::GameLog, WantsToPickupItem, TileType, Monster, HungerClock, HungerState, EntityMoved};
 
 pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     let mut positions = ecs.write_storage::<Position>();
@@ -17,21 +15,21 @@ pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     let mut entity_moved = ecs.write_storage::<EntityMoved>();
 
     for (entity, _player, pos, viewshed) in (&entities, &players, &mut positions, &mut viewsheds).join() {
-        if pos.x + delta_x < 1 || pos.x + delta_x > map.width - 1 || pos.y + delta_y < 1 || pos.y + delta_y > map.height - 1 { return; }
+        if pos.x + delta_x < 1 || pos.x + delta_x > map.width-1 || pos.y + delta_y < 1 || pos.y + delta_y > map.height-1 { return; }
         let destination_idx = map.xy_idx(pos.x + delta_x, pos.y + delta_y);
 
         for potential_target in map.tile_content[destination_idx].iter() {
             let target = combat_stats.get(*potential_target);
             if let Some(_target) = target {
-                wants_to_melee.insert(entity, WantsToMelee { target: *potential_target }).expect("Add target failed");
+                wants_to_melee.insert(entity, WantsToMelee{ target: *potential_target }).expect("Add target failed");
                 return;
             }
         }
 
         if !map.blocked[destination_idx] {
-            pos.x = min(79, max(0, pos.x + delta_x));
+            pos.x = min(79 , max(0, pos.x + delta_x));
             pos.y = min(49, max(0, pos.y + delta_y));
-            entity_moved.insert(entity, EntityMoved {}).expect("Unable to insert marker");
+            entity_moved.insert(entity, EntityMoved{}).expect("Unable to insert marker");
 
             viewshed.dirty = true;
             let mut ppos = ecs.write_resource::<Point>();
@@ -62,7 +60,7 @@ fn get_item(ecs: &mut World) {
     let positions = ecs.read_storage::<Position>();
     let mut gamelog = ecs.fetch_mut::<GameLog>();
 
-    let mut target_item: Option<Entity> = None;
+    let mut target_item : Option<Entity> = None;
     for (item_entity, _item, position) in (&entities, &items, &positions).join() {
         if position.x == player_pos.x && position.y == player_pos.y {
             target_item = Some(item_entity);
@@ -73,7 +71,7 @@ fn get_item(ecs: &mut World) {
         None => gamelog.entries.push("There is nothing here to pick up.".to_string()),
         Some(item) => {
             let mut pickup = ecs.write_storage::<WantsToPickupItem>();
-            pickup.insert(*player_entity, WantsToPickupItem { collected_by: *player_entity, item }).expect("Unable to insert want to pickup");
+            pickup.insert(*player_entity, WantsToPickupItem{ collected_by: *player_entity, item }).expect("Unable to insert want to pickup");
         }
     }
 }

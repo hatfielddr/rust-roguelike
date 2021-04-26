@@ -1,27 +1,26 @@
 use specs::prelude::*;
-
-use super::{CombatStats, DefenseBonus, Equipped, gamelog::GameLog, HungerClock, HungerState, MeleePowerBonus, Name,
-            particle_system::ParticleBuilder, Position, SufferDamage, WantsToMelee};
+use super::{CombatStats, WantsToMelee, Name, SufferDamage, gamelog::GameLog, MeleePowerBonus, DefenseBonus, Equipped,
+    particle_system::ParticleBuilder, Position, HungerClock, HungerState};
 
 pub struct MeleeCombatSystem {}
 
 impl<'a> System<'a> for MeleeCombatSystem {
     #[allow(clippy::type_complexity)]
-    type SystemData = (Entities<'a>,
-                       WriteExpect<'a, GameLog>,
-                       WriteStorage<'a, WantsToMelee>,
-                       ReadStorage<'a, Name>,
-                       ReadStorage<'a, CombatStats>,
-                       WriteStorage<'a, SufferDamage>,
-                       ReadStorage<'a, MeleePowerBonus>,
-                       ReadStorage<'a, DefenseBonus>,
-                       ReadStorage<'a, Equipped>,
-                       WriteExpect<'a, ParticleBuilder>,
-                       ReadStorage<'a, Position>,
-                       ReadStorage<'a, HungerClock>
-    );
+    type SystemData = ( Entities<'a>,
+                        WriteExpect<'a, GameLog>,
+                        WriteStorage<'a, WantsToMelee>,
+                        ReadStorage<'a, Name>,
+                        ReadStorage<'a, CombatStats>,
+                        WriteStorage<'a, SufferDamage>,
+                        ReadStorage<'a, MeleePowerBonus>,
+                        ReadStorage<'a, DefenseBonus>,
+                        ReadStorage<'a, Equipped>,
+                        WriteExpect<'a, ParticleBuilder>,
+                        ReadStorage<'a, Position>,
+                        ReadStorage<'a, HungerClock>
+                      );
 
-    fn run(&mut self, data: Self::SystemData) {
+    fn run(&mut self, data : Self::SystemData) {
         let (entities, mut log, mut wants_melee, names, combat_stats, mut inflict_damage,
             melee_power_bonuses, defense_bonuses, equipped, mut particle_builder, positions, hunger_clock) = data;
 
