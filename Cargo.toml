@@ -5,6 +5,7 @@ authors = ["Drew <hatfielddr>"]
 edition = "2018"
 
 [dependencies]
+lazy_static = "1.4.0"
 rltk = { version = "0.8.1", features = ["serde"] }
 specs = { version = "0.16.1", features = ["serde"] }
 specs-derive = { version = "0.4.1" }
